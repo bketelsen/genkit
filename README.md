@@ -54,3 +54,9 @@ MIT
 
 based on [gokit](https://gokit.io) which is MIT licensed by Peter Bourgon
 
+Much of the code generation code is directly lifted from Brett Slatkin's awesome example:
+http://www.onebigfluke.com/2014/12/generic-programming-go-generate.html
+That code is Apache licensed.
+
+
+
