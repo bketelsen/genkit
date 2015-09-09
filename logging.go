@@ -12,7 +12,7 @@ import (
 )
 {{range .Types}}
 func loggingMiddleware(logger *logrus.Entry) ServiceMiddleware {
-	return func(next {{.LowerName}}Service) {{.Name}}Service {
+	return func(next {{.Name}}Service) {{.Name}}Service {
 		return logmw{logger, next}
 	}
 }

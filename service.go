@@ -7,16 +7,11 @@ package {{.Package}}
 
 import (
 	"errors"
-	"time"
 
 	"github.com/m4rw3r/uuid"
 )
 
 {{range .Types}}
-func (m {{.Name}}) String() string {
-	return m.ID.String()
-}
-
 // {{.Name}}Service represents operations on a {{.Name}}
 type {{.Name}}Service interface {
 	Create({{.Name}}) (string, error)
@@ -34,7 +29,7 @@ type {{.LowerName}}Service struct {
 	{{.LowerName}}List map[string]{{.Name}}
 }
 
-func (t {{.LowerName}}Service) Create(c Member) (string, error) {
+func (t {{.LowerName}}Service) Create(c {{.Name}}) (string, error) {
 	// Create a member here
 	u, _ := uuid.V4()
 	c.ID = u
@@ -43,20 +38,20 @@ func (t {{.LowerName}}Service) Create(c Member) (string, error) {
 }
 func (t {{.LowerName}}Service)  Get(id string) ({{.Name}}, error) {
 	// retrieve {{.LowerName}}
-	member, ok := m.members[id]
+	member, ok := t.{{.LowerName}}List[id]
 	if !ok {
 		return member, ErrNotFound
 	}
 	return member, nil
 }
-func (t {{.LowerName}}Service) Update(m Member) error {
+func (t {{.LowerName}}Service) Update(i {{.Name}}) error {
 	// update
-	t.{{.LowerName}}List[m.ID.String()] = m
+	t.{{.LowerName}}List[i.ID.String()] = i
 	return nil
 }
-func (t {{.LowerName}}Service)  List() ([]Member, error) {
+func (t {{.LowerName}}Service)  List() ([]{{.Name}}, error) {
 	// get all
-	return []Member{}, nil
+	return []{{.Name}}{}, nil
 }
 func (t {{.LowerName}}Service) Delete(id string) error {
 	// delete {{.LowerName}}
@@ -69,5 +64,5 @@ var ErrExists = errors.New("{{.Name}} Exists")
 var ErrNotFound = errors.New("{{.Name}} Not Found")
 
 // ServiceMiddleware is a chainable behavior modifier for {{.Name}}Service.
-type ServiceMiddleware func({{.Name}}Service) {{.Name}}Service))
+type ServiceMiddleware func({{.Name}}Service) {{.Name}}Service
 {{end}}`))

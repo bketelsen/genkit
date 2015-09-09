@@ -6,68 +6,195 @@ var transportTemplate = template.Must(template.New("render").Parse(`// generated
 package {{.Package}}
 
 import (
-	"errors"
-	"time"
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
+	"net/http"
 
-	"github.com/m4rw3r/uuid"
+	"golang.org/x/net/context"
+
+	"github.com/go-kit/kit/endpoint"
 )
-
 {{range .Types}}
-func (m {{.Name}}) String() string {
-	return m.ID.String()
-}
-
-// {{.Name}}Service represents operations on a {{.Name}}
-type {{.Name}}Service interface {
-	Create({{.Name}}) (string, error)
-	Get(string) ({{.Name}}, error)
-	Update({{.Name}}) error
-	List() ([]{{.Name}}, error)
-	Delete(string) error
-}
-
-func (t {{.Name}} ) String() string {
-	return t.ID.String()
-}
-
-type {{.LowerName}}Service struct {
-	{{.LowerName}}List map[string]{{.Name}}
-}
-
-func (t {{.LowerName}}Service) Create(c Member) (string, error) {
-	// Create a member here
-	u, _ := uuid.V4()
-	c.ID = u
-	t.{{.LowerName}}List[u.String()] = c
-	return u.String(), nil
-}
-func (t {{.LowerName}}Service)  Get(id string) ({{.Name}}, error) {
-	// retrieve {{.LowerName}}
-	member, ok := m.members[id]
-	if !ok {
-		return member, ErrNotFound
+func makeCreateEndpoint(svc {{.Name}}Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(createRequest)
+		id, err := svc.Create(req.{{.Name}})
+		if err != nil {
+			return createResponse{id, err.Error()}, nil
+		}
+		return createResponse{id, ""}, nil
 	}
-	return member, nil
 }
-func (t {{.LowerName}}Service) Update(m Member) error {
-	// update
-	t.{{.LowerName}}List[m.ID.String()] = m
-	return nil
+func makeGetEndpoint(svc {{.Name}}Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(getRequest)
+		m, err := svc.Get(req.ID)
+		if err != nil {
+			return getResponse{m, err.Error()}, nil
+		}
+		return getResponse{m, ""}, nil
+	}
 }
-func (t {{.LowerName}}Service)  List() ([]Member, error) {
-	// get all
-	return []Member{}, nil
+
+func makeUpdateEndpoint(svc {{.Name}}Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(updateRequest)
+		err := svc.Update(req.{{.Name}})
+		if err != nil {
+			return updateResponse{err.Error()}, nil
+		}
+		return updateResponse{""}, nil
+	}
 }
-func (t {{.LowerName}}Service) Delete(id string) error {
-	// delete {{.LowerName}}
-	delete(t.{{.LowerName}}List, id)
+
+func makeListEndpoint(svc {{.Name}}Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		list, err := svc.List()
+		if err != nil {
+			return listResponse{list, err.Error()}, nil
+		}
+		return listResponse{list, ""}, nil
+	}
+}
+func makeDeleteEndpoint(svc {{.Name}}Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deleteRequest)
+		err := svc.Delete(req.ID)
+		if err != nil {
+			return deleteResponse{err.Error()}, nil
+		}
+		return deleteResponse{""}, nil
+	}
+}
+func decodeCreateRequest(r *http.Request) (interface{}, error) {
+	var request createRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func decodeCreateResponse(r *http.Response) (interface{}, error) {
+	var response createResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+func decodeGetRequest(r *http.Request) (interface{}, error) {
+	var request getRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func decodeGetResponse(r *http.Response) (interface{}, error) {
+	var response getResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+func decodeUpdateRequest(r *http.Request) (interface{}, error) {
+	var request updateRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func decodeUpdateResponse(r *http.Response) (interface{}, error) {
+	var response updateResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+func decodeListRequest(r *http.Request) (interface{}, error) {
+	var request listRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func decodeListResponse(r *http.Response) (interface{}, error) {
+	var response listResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func decodeDeleteRequest(r *http.Request) (interface{}, error) {
+	var request deleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func decodeDeleteResponse(r *http.Response) (interface{}, error) {
+	var response deleteResponse
+	if err := json.NewDecoder(r.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+func encodeResponse(w http.ResponseWriter, response interface{}) error {
+	return json.NewEncoder(w).Encode(response)
+}
+
+func encodeRequest(r *http.Request, request interface{}) error {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(request); err != nil {
+		return err
+	}
+	r.Body = ioutil.NopCloser(&buf)
 	return nil
 }
 
-// ErrExists is returned when the {{.LowerName}} already exists
-var ErrExists = errors.New("{{.Name}} Exists")
-var ErrNotFound = errors.New("{{.Name}} Not Found")
+type createRequest struct {
+	{{.Name}} {{.Name}} ` + "`json:'{{.LowerName}}'`" + `
+}
 
-// ServiceMiddleware is a chainable behavior modifier for StringService.
-type ServiceMiddleware func({{.Name}}Service) {{.Name}}Service))
-){{end}}`))
+type createResponse struct {
+	ID  string ` + "`json:'id'`" + `
+	Err string ` + "`json:'err,omitempty'`" + `
+}
+
+type getRequest struct {
+	ID string ` + "`json:'id'`" + `
+}
+
+type getResponse struct {
+	{{.Name}} {{.Name}} ` + "`json:'{{.LowerName}}'`" + `
+	Err string ` + "`json:'err,omitempty'`" + `
+}
+
+type updateRequest struct {
+	{{.Name}} {{.Name}} ` + "`json:'{{.LowerName}}'`" + `
+}
+
+type updateResponse struct {
+	Err string ` + "`json:'err,omitempty'`" + `
+}
+
+type listRequest struct {
+}
+
+type listResponse struct {
+	{{.Name}}List []{{.Name}}  ` + "`json:'{{.LowerName}}list'`" + ` 
+	Err string ` + "`json:'err,omitempty'`" + `
+}
+
+type deleteRequest struct {
+	ID string ` + "`json:'id'`" + `
+}
+
+type deleteResponse struct {
+	Err string ` + "`json:'err,omitempty'`" + `
+}
+{{end}}`))

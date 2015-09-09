@@ -6,68 +6,77 @@ var registrationTemplate = template.Must(template.New("render").Parse(`// genera
 package {{.Package}}
 
 import (
-	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"os"
 	"time"
+	"xor/base"
 
-	"github.com/m4rw3r/uuid"
+	"golang.org/x/net/context"
+
+	"github.com/go-kit/kit/metrics/statsd"
+	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/spf13/viper"
 )
 
+var log = base.Logger
 {{range .Types}}
-func (m {{.Name}}) String() string {
-	return m.ID.String()
-}
+func GetMux(ctx context.Context) *http.ServeMux {
 
-// {{.Name}}Service represents operations on a {{.Name}}
-type {{.Name}}Service interface {
-	Create({{.Name}}) (string, error)
-	Get(string) ({{.Name}}, error)
-	Update({{.Name}}) error
-	List() ([]{{.Name}}, error)
-	Delete(string) error
-}
-
-func (t {{.Name}} ) String() string {
-	return t.ID.String()
-}
-
-type {{.LowerName}}Service struct {
-	{{.LowerName}}List map[string]{{.Name}}
-}
-
-func (t {{.LowerName}}Service) Create(c Member) (string, error) {
-	// Create a member here
-	u, _ := uuid.V4()
-	c.ID = u
-	t.{{.LowerName}}List[u.String()] = c
-	return u.String(), nil
-}
-func (t {{.LowerName}}Service)  Get(id string) ({{.Name}}, error) {
-	// retrieve {{.LowerName}}
-	member, ok := m.members[id]
-	if !ok {
-		return member, ErrNotFound
+	statsdhost := viper.GetString("statsdhost")
+	statsdport := viper.GetInt("statsdport")
+	statsdhp := fmt.Sprintf("%s:%d", statsdhost, statsdport)
+	statsdWriter, err := net.Dial("udp", statsdhp)
+	if err != nil {
+		os.Exit(1)
 	}
-	return member, nil
-}
-func (t {{.LowerName}}Service) Update(m Member) error {
-	// update
-	t.{{.LowerName}}List[m.ID.String()] = m
-	return nil
-}
-func (t {{.LowerName}}Service)  List() ([]Member, error) {
-	// get all
-	return []Member{}, nil
-}
-func (t {{.LowerName}}Service) Delete(id string) error {
-	// delete {{.LowerName}}
-	delete(t.{{.LowerName}}List, id)
-	return nil
-}
+	m := http.NewServeMux()
 
-// ErrExists is returned when the {{.LowerName}} already exists
-var ErrExists = errors.New("{{.Name}} Exists")
-var ErrNotFound = errors.New("{{.Name}} Not Found")
+	requestCount := statsd.NewCounter(statsdWriter, "{{.LowerName}}_request_count", 5*time.Second)
+	requestLatency := statsd.NewHistogram(statsdWriter, "{{.LowerName}}_request_latency_ms", 5*time.Second)
+	var svc {{.Name}}Service
+	svc = {{.LowerName}}Service{ {{.LowerName}}List: make(map[string]{{.Name}})}
+	svc = loggingMiddleware(log)(svc)
+	svc = instrumentingMiddleware(requestCount, requestLatency)(svc)
 
-// ServiceMiddleware is a chainable behavior modifier for StringService.
-type ServiceMiddleware func({{.Name}}Service) {{.Name}}Service))
-){{end}}`))
+	createHandler := httptransport.Server{
+		Context:            ctx,
+		Endpoint:           makeCreateEndpoint(svc),
+		DecodeRequestFunc:  decodeCreateRequest,
+		EncodeResponseFunc: encodeResponse,
+	}
+
+	getHandler := httptransport.Server{
+		Context:            ctx,
+		Endpoint:           makeGetEndpoint(svc),
+		DecodeRequestFunc:  decodeGetRequest,
+		EncodeResponseFunc: encodeResponse,
+	}
+	updateHandler := httptransport.Server{
+		Context:            ctx,
+		Endpoint:           makeUpdateEndpoint(svc),
+		DecodeRequestFunc:  decodeUpdateRequest,
+		EncodeResponseFunc: encodeResponse,
+	}
+
+	listHandler := httptransport.Server{
+		Context:            ctx,
+		Endpoint:           makeListEndpoint(svc),
+		DecodeRequestFunc:  decodeListRequest,
+		EncodeResponseFunc: encodeResponse,
+	}
+	deleteHandler := httptransport.Server{
+		Context:            ctx,
+		Endpoint:           makeDeleteEndpoint(svc),
+		DecodeRequestFunc:  decodeDeleteRequest,
+		EncodeResponseFunc: encodeResponse,
+	}
+	m.Handle("/create", createHandler)
+	m.Handle("/get", getHandler)
+	m.Handle("/update", updateHandler)
+	m.Handle("/list", listHandler)
+	m.Handle("/delete", deleteHandler)
+	return m
+}
+{{end}}`))

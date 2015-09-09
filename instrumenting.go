@@ -11,12 +11,12 @@ import (
 
 	"github.com/go-kit/kit/metrics"
 )
-
+{{range .Types}}
 func instrumentingMiddleware(
 	requestCount metrics.Counter,
 	requestLatency metrics.Histogram,
 ) ServiceMiddleware {
-	return func(next MemberService) MemberService {
+	return func(next {{.Name}}Service) {{.Name}}Service {
 		return instrmw{requestCount, requestLatency, next}
 	}
 }
@@ -24,10 +24,10 @@ func instrumentingMiddleware(
 type instrmw struct {
 	requestCount   metrics.Counter
 	requestLatency metrics.Histogram
-	MemberService
+	{{.Name}}Service
 }
 
-func (mw instrmw) Create(c Member) (u string, err error) {
+func (mw instrmw) Create(c {{.Name}}) (u string, err error) {
 	defer func(begin time.Time) {
 		methodField := metrics.Field{Key: "method", Value: "create"}
 		errorField := metrics.Field{Key: "error", Value: fmt.Sprintf("%v", err)}
@@ -36,11 +36,11 @@ func (mw instrmw) Create(c Member) (u string, err error) {
 		mw.requestLatency.With(methodField).With(errorField).Observe(durInt)
 	}(time.Now())
 
-	u, err = mw.MemberService.Create(c)
+	u, err = mw.{{.Name}}Service.Create(c)
 	return
 }
 
-func (mw instrmw) Get(id string) (m Member, err error) {
+func (mw instrmw) Get(id string) (m {{.Name}}, err error) {
 	defer func(begin time.Time) {
 		methodField := metrics.Field{Key: "method", Value: "get"}
 		errorField := metrics.Field{Key: "error", Value: fmt.Sprintf("%v", err)}
@@ -49,11 +49,11 @@ func (mw instrmw) Get(id string) (m Member, err error) {
 		mw.requestLatency.With(methodField).With(errorField).Observe(durInt)
 	}(time.Now())
 
-	m, err = mw.MemberService.Get(id)
+	m, err = mw.{{.Name}}Service.Get(id)
 	return
 }
 
-func (mw instrmw) Update(m Member) (err error) {
+func (mw instrmw) Update(m {{.Name}}) (err error) {
 	defer func(begin time.Time) {
 		methodField := metrics.Field{Key: "method", Value: "update"}
 		errorField := metrics.Field{Key: "error", Value: fmt.Sprintf("%v", err)}
@@ -62,11 +62,11 @@ func (mw instrmw) Update(m Member) (err error) {
 		mw.requestLatency.With(methodField).With(errorField).Observe(durInt)
 	}(time.Now())
 
-	err = mw.MemberService.Update(m)
+	err = mw.{{.Name}}Service.Update(m)
 	return
 }
 
-func (mw instrmw) List() (list []Member, err error) {
+func (mw instrmw) List() (list []{{.Name}}, err error) {
 	defer func(begin time.Time) {
 		methodField := metrics.Field{Key: "method", Value: "list"}
 		errorField := metrics.Field{Key: "error", Value: fmt.Sprintf("%v", err)}
@@ -75,7 +75,7 @@ func (mw instrmw) List() (list []Member, err error) {
 		mw.requestLatency.With(methodField).With(errorField).Observe(durInt)
 	}(time.Now())
 
-	list, err = mw.MemberService.List()
+	list, err = mw.{{.Name}}Service.List()
 	return
 }
 
@@ -88,7 +88,7 @@ func (mw instrmw) Delete(id string) (err error) {
 		mw.requestLatency.With(methodField).With(errorField).Observe(durInt)
 	}(time.Now())
 
-	err = mw.MemberService.Delete(id)
+	err = mw.{{.Name}}Service.Delete(id)
 	return
 }
 {{end}}`))
