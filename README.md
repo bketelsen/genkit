@@ -3,7 +3,7 @@ This is a proof of concept go generator that generates everything but the `main`
 to create a service from one of your types.
 
 It's slightly opinionated, in that I needed a service that publishes to statsd, so I used the 
-statsd metrics package.  Pull requests to make this optional/switchable are welcome.
+statsd metrics package.  We also standardized on Logrus at $work so this uses logrus instead of kit/log.  Pull requests to make this optional/switchable are welcome.
 
 Given this type:
 
