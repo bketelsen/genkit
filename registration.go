@@ -40,38 +40,36 @@ func GetMux(ctx context.Context) *http.ServeMux {
 	svc = loggingMiddleware(log)(svc)
 	svc = instrumentingMiddleware(requestCount, requestLatency)(svc)
 
-	createHandler := httptransport.Server{
-		Context:            ctx,
-		Endpoint:           makeCreateEndpoint(svc),
-		DecodeRequestFunc:  decodeCreateRequest,
-		EncodeResponseFunc: encodeResponse,
-	}
+	createHandler := httptransport.NewServer(
+		ctx,
+		makeCreateEndpoint(svc),
+		decodeCreateRequest,
+		encodeResponse)
 
-	getHandler := httptransport.Server{
-		Context:            ctx,
-		Endpoint:           makeGetEndpoint(svc),
-		DecodeRequestFunc:  decodeGetRequest,
-		EncodeResponseFunc: encodeResponse,
-	}
-	updateHandler := httptransport.Server{
-		Context:            ctx,
-		Endpoint:           makeUpdateEndpoint(svc),
-		DecodeRequestFunc:  decodeUpdateRequest,
-		EncodeResponseFunc: encodeResponse,
-	}
+	getHandler := httptransport.NewServer(
+		ctx,
+		makeGetEndpoint(svc),
+		decodeGetRequest,
+		encodeResponse)
+	
+	updateHandler := httptransport.NewServer(
+		ctx,
+		makeUpdateEndpoint(svc),
+		decodeUpdateRequest,
+		encodeResponse)
 
-	listHandler := httptransport.Server{
-		Context:            ctx,
-		Endpoint:           makeListEndpoint(svc),
-		DecodeRequestFunc:  decodeListRequest,
-		EncodeResponseFunc: encodeResponse,
-	}
-	deleteHandler := httptransport.Server{
-		Context:            ctx,
-		Endpoint:           makeDeleteEndpoint(svc),
-		DecodeRequestFunc:  decodeDeleteRequest,
-		EncodeResponseFunc: encodeResponse,
-	}
+	listHandler := httptransport.NewServer(
+		ctx,
+		makeListEndpoint(svc),
+		decodeListRequest,
+		encodeResponse)
+	
+	deleteHandler := httptransport.NewServer(
+		ctx,
+		makeDeleteEndpoint(svc),
+		decodeDeleteRequest,
+		encodeResponse)
+	
 	m.Handle("/create", createHandler)
 	m.Handle("/get", getHandler)
 	m.Handle("/update", updateHandler)
